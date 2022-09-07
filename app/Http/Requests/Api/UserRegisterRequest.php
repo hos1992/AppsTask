@@ -25,8 +25,10 @@ class UserRegisterRequest extends BaseApiRequest
             'name' => 'required|max:100',
             'email' => 'required|unique:users,email',
             'password' => 'required|min:6|max:100|confirmed',
-            'department_id' => 'required|exists:departments,id',
-            'section_id' => 'nullable|exists:sections,id',
+            'departments' => 'required|array',
+            'departments.*.id' => 'required|exists:departments,id',
+            'departments.*.section_id' => 'nullable|exists:sections,id',
+//            'departments.*.is_manger' => 'required|in:0,1',
         ];
     }
 }

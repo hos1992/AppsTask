@@ -19,4 +19,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // notifications
     Route::get('notifications', [\App\Http\Controllers\Api\NotificationsController::class, 'index']);
+
+
+    // Users
+    Route::get('list-users-by-department', [\App\Http\Controllers\Api\UsersController::class, 'listByDepartment']);
 });

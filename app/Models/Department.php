@@ -12,13 +12,11 @@ class Department extends Model
     protected $guarded = [];
 
     /**
-     * Get all department employees
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
     public function users()
     {
-        return $this->hasMany(User::class);
+        return $this->belongsToMany(User::class)->withPivot('is_manager');
     }
 
     /**
@@ -28,7 +26,8 @@ class Department extends Model
      */
     public function manager()
     {
-        return $this->hasOne(User::class)->where('section_id', NULL);
+        return $this->hasOne(DepartmentUser::class)
+            ->where('is_manager', true)->with('user');
     }
 
     /**

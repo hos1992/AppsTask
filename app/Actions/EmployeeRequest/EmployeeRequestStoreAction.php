@@ -4,7 +4,9 @@ namespace App\Actions\EmployeeRequest;
 
 use App\Actions\Action;
 use App\Models\Department;
+use App\Models\User;
 use App\Notifications\NewEmployeeRequestNotification;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 
 class EmployeeRequestStoreAction extends Action
@@ -21,24 +23,51 @@ class EmployeeRequestStoreAction extends Action
 
     public function __invoke()
     {
-        $user = request()->user();
 
-        $create['description'] = $this->data['description'];
+        $user = User::where('id', Auth::id())->with('departments.manager', 'sections')->first();
+        $isManagerInAnyDepartment = false;
+        $isHrManager = false;
+        $isInHrDepartment = false;
+        $hrManager = Department::where('name', 'hr')->with('manager')->first();
 
-        if (is_null($user->section_id)) {
-            if ($user->department->name == 'hr') {
-                $create['status'] = 2;
-            } else {
-                $create['status'] = 1;
-                $this->usersToNotify[] = Department::where('name', 'hr')->first()->manager;
+        foreach ($user->departments as $dep) {
+            if ($dep->pivot->is_manager) {
+                $isManagerInAnyDepartment = true;
             }
-        } else {
-            if ($user->department->name == 'hr') {
-                $create['status'] = 1;
+            if ($dep->name == 'hr' && $dep->pivot->is_manager) {
+                $isHrManager = true;
             }
-            $this->usersToNotify[] = $user->department->manager;
+            if ($dep->name == 'hr') {
+                $isInHrDepartment = true;
+            }
         }
 
+        if ($isManagerInAnyDepartment) {
+            $create['status'] = 1;
+            if ($hrManager->manager->user) {
+                $this->usersToNotify[] = $hrManager->manager->user;
+            }
+        }
+
+        if ($isManagerInAnyDepartment && $isHrManager) {
+            $create['status'] = 2;
+        }
+
+        if (!$isManagerInAnyDepartment && !$isHrManager) {
+            if ($isInHrDepartment) {
+                if ($hrManager->manager->user) {
+                    $this->usersToNotify[] = $hrManager->manager->user;
+                }
+            } else {
+                foreach ($user->departments as $dep) {
+                    if ($dep->manager) {
+                        $this->usersToNotify[] = $dep->manager->user;
+                    }
+                }
+            }
+        }
+
+        $create['description'] = $this->data['description'];
         $request = $user->requests()->create($create);
 
         // send notification here

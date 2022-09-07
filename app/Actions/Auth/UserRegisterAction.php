@@ -4,6 +4,7 @@ namespace App\Actions\Auth;
 
 use App\Actions\Action;
 use App\Models\Department;
+use App\Models\DepartmentUser;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -24,30 +25,57 @@ class UserRegisterAction extends Action
      */
     public function __invoke()
     {
-        $department = Department::find($this->data['department_id']);
-        if (!isset($this->data['section_id']) || empty($this->data['section_id'])) {
-            $checkForManager = User::where([
-                ['department_id', '=', $department->id],
-                ['section_id', '=', null]
-            ])->first();
-            if ($checkForManager) {
-                throw ValidationException::withMessages([
-                    'section_id' => ['The section id is required because the department already has a manager'],
-                ]);
+
+        $userDepartments = [];
+        $userSections = [];
+
+        $departments = $this->data['departments'];
+        foreach ($departments as $department) {
+            $dep = Department::find($department['id']);
+            if (isset($department['section_id']) && !empty($department['section_id'])) {
+                $section = $dep->sections()->where('id', $department['section_id'])->first();
+                if (!$section) {
+                    throw ValidationException::withMessages([
+                        'error' => ['The section id ( ' . $department['section_id'] . ' ) provided for the wrong department'],
+                    ]);
+                }
+
+                $userSections[] = [
+                    'section_id' => $section->id,
+                ];
+
+            } else {
+                // this user wanted to be a manger
+                $checkForManager = DepartmentUser::where([
+                    ['department_id', '=', $dep->id],
+                    ['is_manager', '=', true],
+                ])->first();
+
+                if ($checkForManager) {
+                    throw ValidationException::withMessages([
+                        'error' => ['The department id ( ' . $dep->id . ' )  already has a manager'],
+                    ]);
+                }
             }
-        } else {
-            if (!$department->sections()->where('id', $this->data['section_id'])->first()) {
-                throw ValidationException::withMessages([
-                    'section_id' => ['Wrong section id'],
-                ]);
-            }
+
+            $userDepartments[] = [
+                'department_id' => $dep->id,
+                'is_manager' => empty($department['section_id']) ? true : false,
+            ];
+
         }
 
 
-
+        unset($this->data['departments']);
         $this->data['password'] = bcrypt($this->data['password']);
-        $user =  $department->users()->create($this->data);
+        $user = User::create($this->data);
         $user['token'] = 'Bearer ' . $user->createToken($user->name)->plainTextToken;
+
+        if ($user) {
+            $user->departments()->sync($userDepartments);
+            $user->sections()->sync($userSections);
+        }
+
         return $user;
     }
 }

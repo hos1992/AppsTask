@@ -31,24 +31,30 @@ class User extends Authenticatable
 
 
     /**
-     * Get employee department
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
-    public function department()
+    public function departments()
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsToMany(Department::class)
+            ->withPivot('is_manager');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function departmentsIManage()
+    {
+        return $this->belongsToMany(Department::class)
+            ->wherePivot('is_manager', true);
     }
 
 
     /**
-     * get employee section in his department if NULL means this employee is the department manager
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
-    public function section()
+    public function sections()
     {
-        return $this->belongsTo(Section::class);
+        return $this->belongsToMany(Section::class);
     }
 
     /**
@@ -58,4 +64,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(EmployeeRequest::class);
     }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function requestsForManager()
+    {
+        return $this->hasMany(EmployeeRequest::class)->where('status', 0);
+    }
+
+
 }

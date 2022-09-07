@@ -5,7 +5,9 @@ namespace App\Actions\EmployeeRequest;
 use App\Actions\Action;
 use App\Models\Department;
 use App\Models\EmployeeRequest;
+use App\Models\User;
 use App\Notifications\EmployeeRequestStatusChangedNotification;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
@@ -27,9 +29,22 @@ class EmployeeRequestChangeStatusAction extends Action
      */
     public function __invoke()
     {
-        $user = request()->user();
-        $currentDepartment = $user->department;
-        $req = EmployeeRequest::where('id', $this->data['request_id'])->with('user')->first();
+
+        $user = User::where('id', Auth::id())->with('departmentsIManage')->first();
+        $req = EmployeeRequest::where('id', $this->data['request_id'])->with('user.departments')->first();
+        $isHrManager = false;
+
+        if (!count($user->departmentsIManage)) {
+            throw ValidationException::withMessages([
+                'error' => ['You are not a manager in any department !'],
+            ]);
+        }
+
+        foreach ($user->departmentsIManage as $dep) {
+            if ($dep->name == 'hr') {
+                $isHrManager = true;
+            }
+        }
 
         if ($req->status == $this->data['status']) {
             throw ValidationException::withMessages([
@@ -49,28 +64,22 @@ class EmployeeRequestChangeStatusAction extends Action
             ]);
         }
 
-        if (!is_null($user->section_id)) {
-            throw ValidationException::withMessages([
-                'message' => ['You don\'t have access to this action'],
-            ]);
-        }
+        $myDepartmentsIds = $user->departmentsIManage->pluck('id')->toArray();
+        $employeeDepartmentsIds = $req->user->departments->pluck('id')->toArray();
 
-        if ($currentDepartment->name != 'hr' && $currentDepartment->id != $req->user->department_id) {
-            throw ValidationException::withMessages([
-                'message' => ['You don\'t have access to this action'],
-            ]);
-        }
-
-        if ($req->status == 0 && $user->department_id != $req->user->department_id) {
-            throw ValidationException::withMessages([
-                'message' => ['You don\'t have access to this action'],
-            ]);
-        }
-
-        if ($currentDepartment->name != 'hr' && $this->data['status'] == 2) {
-            throw ValidationException::withMessages([
-                'message' => ['You don\'t have the rights to send this status'],
-            ]);
+        if (!$isHrManager) {
+            $checkDepartment = array_intersect($myDepartmentsIds, $employeeDepartmentsIds);
+            if (!count($checkDepartment)) {
+                throw ValidationException::withMessages([
+                    'error' => ['You don\'t have permission to change this request status because it\'s not in a department you manage'],
+                ]);
+            }
+        } else {
+            if ($this->data['status'] < 1) {
+                throw ValidationException::withMessages([
+                    'error' => ['the manager must approve the request before the hr !'],
+                ]);
+            }
         }
 
         /**
@@ -81,8 +90,9 @@ class EmployeeRequestChangeStatusAction extends Action
 
 
         if ($this->data['status'] == 1) {
+            $hrManager = Department::where('name', 'hr')->with('manager')->first();
             $this->usersToNotify[] = $req->user;
-            $this->usersToNotify[] = Department::where('name', 'hr')->first()->manager;
+            $this->usersToNotify[] = $hrManager->manager->user;
         }
         if ($this->data['status'] == 2 || $this->data['status'] == 3) {
             $this->usersToNotify[] = $req->user;

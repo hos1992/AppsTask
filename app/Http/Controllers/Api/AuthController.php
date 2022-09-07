@@ -38,7 +38,7 @@ class AuthController extends Controller
     {
         try {
             $response = App::call(new UserRegisterAction($request->only([
-                'name', 'email', 'password', 'department_id', 'section_id',
+                'name', 'email', 'password', 'departments',
             ])));
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage());

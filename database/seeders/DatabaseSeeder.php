@@ -5,7 +5,7 @@ namespace Database\Seeders;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
 use App\Models\Department;
-use App\Models\Section;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -31,50 +31,33 @@ class DatabaseSeeder extends Seeder
         $backEndDevSection = $development->sections()->firstOrCreate(['name' => 'back end team']);
 
         // create the users
-        $hrDepartmentManager = $hr->users()->firstOrCreate(['email' => 'hr@hr.com'], [
+        $hrDepartmentManager = User::firstOrCreate(['email' => 'hr@hr.com'], [
             'name' => 'Hr Manager',
             'email' => 'hr@hr.com',
             'password' => bcrypt('123456'),
         ]);
-        $hrDepartmentSectionEmployee = $hr->users()->firstOrCreate(['email' => 'hrEmployee@hr.com'], [
-            'name' => 'Hr Employee',
-            'email' => 'hrEmployee@hr.com',
-            'password' => bcrypt('123456'),
-            'section_id' => $hrTeamSection->id
+        $hrDepartmentManager->departments()->sync([
+            ['department_id' => $hr->id, 'is_manager' => true]
         ]);
-        $salesDepartmentManager = $sales->users()->firstOrCreate(['email' => 'sales@sales.com'], [
+
+        $salesDepartmentManager = User::firstOrCreate(['email' => 'sales@sales.com'], [
             'name' => 'Sales Manager',
             'email' => 'sales@sales.com',
             'password' => bcrypt('123456'),
         ]);
-        $salesDepartmentSectionIndoorEmployee = $sales->users()->firstOrCreate(['email' => 'inDoorEmployee@sales.com'], [
-            'name' => 'In Door Employee',
-            'email' => 'inDoorEmployee@hr.com',
-            'password' => bcrypt('123456'),
-            'section_id' => $inDoorSalesSection->id
+        $salesDepartmentManager->departments()->sync([
+            ['department_id' => $sales->id, 'is_manager' => true]
         ]);
-        $salesDepartmentSectionOutdoorEmployee = $sales->users()->firstOrCreate(['email' => 'outDoorEmployee@sales.com'], [
-            'name' => 'Out Door Employee',
-            'email' => 'outDoorEmployee@hr.com',
-            'password' => bcrypt('123456'),
-            'section_id' => $outDoorSalesSection->id
-        ]);
-        $devDepartmentManager = $development->users()->firstOrCreate(['email' => 'dev@dev.com'], [
+
+        $devDepartmentManager = User::firstOrCreate(['email' => 'dev@dev.com'], [
             'name' => 'Dev Manager',
             'email' => 'dev@dev.com',
             'password' => bcrypt('123456'),
         ]);
-        $devDepartmentSectionFrontEmployee = $development->users()->firstOrCreate(['email' => 'frontEmployee@dev.com'], [
-            'name' => 'Front End Employee',
-            'email' => 'frontEmployee@dev.com',
-            'password' => bcrypt('123456'),
-            'section_id' => $frontEndDevSection->id
+        $devDepartmentManager->departments()->sync([
+            ['department_id' => $development->id, 'is_manager' => true]
         ]);
-        $devDepartmentSectionBackEmployee = $development->users()->firstOrCreate(['email' => 'backEmployee@dev.com'], [
-            'name' => 'Back End Employee',
-            'email' => 'backEmployee@dev.com',
-            'password' => bcrypt('123456'),
-            'section_id' => $backEndDevSection->id
-        ]);
+
+
     }
 }
